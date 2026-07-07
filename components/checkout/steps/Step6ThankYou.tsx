@@ -34,9 +34,11 @@ export default function Step6ThankYou({ config }: { config: SiteConfig }) {
           )}
         </div>
 
-        <div className="text-left">
-          <DebugPayloadPanel payload={debugSubmissionPayload} />
-        </div>
+        {process.env.NODE_ENV !== "production" && (
+          <div className="text-left">
+            <DebugPayloadPanel payload={debugSubmissionPayload} />
+          </div>
+        )}
 
         <Button variant="outline" onClick={reset}>
           Start a New Application
