@@ -42,7 +42,9 @@ export const applySchema = z.object({
       "Invalid loan product"
     ),
   featuredPlacement: z.boolean().default(true),
-  // "city|state" keys the user has opted out of featured placement
+  // "city|loanProductLabel" keys the user has opted out of featured
+  // placement — Featured Placement is sold per (city, loan product) pair,
+  // not per city (see lib/pricing.ts's calculateQuote()).
   excludedFeatured: z.array(z.string()).default([]),
 
   // Step 3: Contact Info
@@ -80,6 +82,21 @@ export const applySchema = z.object({
   consentToTerms: z.literal(true, {
     errorMap: () => ({ message: "You must agree to the terms to continue" }),
   }),
+
+  // Richer listing content collected by the new checkout wizard's "Complete
+  // Now" listing-info step. Optional since the "Complete Later" branch skips
+  // all of this — not yet backed by dedicated Postgres columns, so the BFF
+  // passes these through into deals.raw_data for now (see lib/bff.ts).
+  listingChoice: z.enum(["now", "later"]).optional(),
+  listingBio: z.string().max(2000).optional(),
+  listingHours: z
+    .record(z.string(), z.object({ open: z.boolean(), from: z.string(), to: z.string() }))
+    .optional(),
+  sameAsBilling: z.boolean().optional(),
+  businessAddress: z
+    .object({ street: z.string(), city: z.string(), state: z.string(), zip: z.string() })
+    .nullable()
+    .optional(),
 
   _honeypot: z.string().max(0, "Bot detected").optional(),
 });

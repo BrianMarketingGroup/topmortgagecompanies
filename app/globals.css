@@ -16,6 +16,20 @@
   --color-gold-light: #D9BF85;
   --color-gold-dark: #A8873A;
 
+  /* Checkout wizard semantic aliases */
+  --color-primary: var(--color-navy);
+  --color-primary-light: var(--color-navy-light);
+  --color-primary-dark: var(--color-navy-dark);
+  --color-accent: var(--color-gold);
+  --color-accent-light: var(--color-gold-light);
+  --color-accent-dark: var(--color-gold-dark);
+  --color-bg: var(--color-sky);
+  --color-bg-dark: var(--color-navy-dark);
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-success: var(--color-teal);
+  --color-danger: #c0392b;
+
   /* Typography */
   --font-display: var(--playfair), Georgia, "Times New Roman", serif;
   --font-sans: var(--inter), system-ui, -apple-system, sans-serif;

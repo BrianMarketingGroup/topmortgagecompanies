@@ -2,6 +2,12 @@ import { calculateQuote, formatCurrency, PRICING } from "@/lib/pricing";
 
 interface PricingEstimateProps {
   cities: { city: string; state: string }[];
+  // Optional: this legacy component (used only by the retired single-page
+  // ApplyForm, no longer rendered from any page — superseded by the
+  // checkout wizard) predates lib/pricing.ts's per-loan-product pricing
+  // model and never collected this itself. Defaults to empty so its quote
+  // omits the per-product line item rather than passing a required field.
+  loanProducts?: string[];
   featured: boolean;
   excludedFeatured: string[];
   takenSlots: string[];
@@ -10,6 +16,7 @@ interface PricingEstimateProps {
 
 export default function PricingEstimate({
   cities,
+  loanProducts = [],
   featured,
   excludedFeatured = [],
   takenSlots = [],
@@ -17,6 +24,7 @@ export default function PricingEstimate({
 }: PricingEstimateProps) {
   const validCities = cities.filter((l) => l.city && l.state);
   const { lineItems, total } = calculateQuote({
+    loanProducts,
     cities: validCities,
     featured,
     excludedFeatured: [...new Set([...excludedFeatured, ...takenSlots])],

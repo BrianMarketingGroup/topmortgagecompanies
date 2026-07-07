@@ -40,6 +40,7 @@ export async function sendLeadEmail(
   init();
 
   const quote = calculateQuote({
+    loanProducts: data.loanProducts,
     cities: data.locations,
     featured: data.featuredPlacement,
     excludedFeatured: data.excludedFeatured ?? [],
