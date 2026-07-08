@@ -10,11 +10,17 @@ import { getCache, setCache } from "@/lib/availabilityCache";
  * product) slot via `cities` + `areas` JSON params, expecting back
  * { takenSlots: string[] } keyed as "${city}|${loanProductLabel}".
  *
- * (This route previously only supported a single city/state pair and
- * returned a flat { taken: boolean } — a leftover from the old single-page
- * ApplyForm's per-city-only featured model. That contract can't express
- * per-loan-product availability, so it's replaced here to match the rest of
- * this site's per-slot model.)
+ * Source of truth is the BFF featured_claims API (the directory's real
+ * claims). Falls back to the legacy "Featured-Placement-City" Google Sheet
+ * when BIG_SWING_BFF_URL is unset or the BFF call fails.
+ *
+ * KNOWN GAP (same as topinsuranceagents): the BFF's /api/v1/featured-claims
+ * endpoint only returns {city, state} — it does not expose which loan
+ * product was claimed, even though Featured Placement here is sold per
+ * (city, loan product) pair. Until the BFF adds specialty filtering, we
+ * conservatively treat any BFF-reported city as taken for *every* requested
+ * loan product (never oversells a slot, but may under-sell a still-available
+ * product in an already-claimed city).
  */
 
 function getAuth() {
@@ -27,7 +33,28 @@ function getAuth() {
   });
 }
 
-/** Read taken (city, loan product) slots from the Featured-Placement-City sheet tab. */
+/** Read taken cities from the BFF featured_claims API; null = unavailable (fall back). */
+async function getTakenCitiesFromBff(): Promise<{ city: string; state: string }[] | null> {
+  const base = process.env.BIG_SWING_BFF_URL;
+  const platformId = process.env.BIG_SWING_PLATFORM_ID;
+  if (!base || !platformId) return null;
+  try {
+    const res = await fetch(
+      `${base.replace(/\/+$/, "")}/api/v1/featured-claims?platform_id=${Number(platformId)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.items ?? []).map((i: { city: string; state: string }) => ({
+      city: (i.city ?? "").toString().trim(),
+      state: (i.state ?? "").toString().trim(),
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/** Read taken (city, loan product) slots from the Featured-Placement-City sheet tab (fallback). */
 async function getTakenSlotsFromSheet(
   cities: { city: string; state: string }[],
   areas: string[],
@@ -94,7 +121,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ takenSlots: cached });
   }
 
-  const takenSlots = await getTakenSlotsFromSheet(cities, areas);
+  const takenCities = await getTakenCitiesFromBff();
+
+  let takenSlots: string[];
+  if (takenCities !== null) {
+    // Conservative fallback for the BFF's missing specialty granularity: a
+    // taken city blocks every requested loan product in it.
+    takenSlots = [];
+    for (const loc of cities) {
+      const isTaken = takenCities.some((t) => t.city === loc.city && t.state === loc.state);
+      if (isTaken) {
+        for (const area of areas) takenSlots.push(`${loc.city}|${area}`);
+      }
+    }
+  } else {
+    takenSlots = await getTakenSlotsFromSheet(cities, areas);
+  }
+
   const unique = [...new Set(takenSlots)];
   setCache(cacheKey, unique);
   return NextResponse.json({ takenSlots: unique });
